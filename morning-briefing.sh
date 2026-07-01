@@ -1,0 +1,245 @@
+#!/bin/bash
+# AI Chief of Staff — Full Morning Briefing
+# Collects context and runs Claude Code for the briefing
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config.sh"
+OBSIDIAN_ROOT="$BRIEFING_DIR"
+TODO_FILE="$OBSIDIAN_ROOT/To-do.md"
+PROJECTS_DIR="$OBSIDIAN_ROOT/Project ideas"
+BRIEFINGS_DIR="$OBSIDIAN_ROOT/Daily briefings"
+TODAY=$(date "+%Y-%m-%d")
+DAY_OF_WEEK=$(date "+%A")
+
+# Collect to-do list
+TODO_CONTENT=""
+if [ -f "$TODO_FILE" ]; then
+    TODO_CONTENT=$(cat "$TODO_FILE")
+fi
+
+# Collect calendar events via AppleScript
+CALENDAR_EVENTS=$(osascript "$SCRIPT_DIR/get-calendar.scpt" 2>/dev/null || echo "Could not read calendar. Check permissions.")
+
+# Collect workout library
+WORKOUT_LIBRARY=""
+if [ -f "$SCRIPT_DIR/workout-library.md" ]; then
+    WORKOUT_LIBRARY=$(cat "$SCRIPT_DIR/workout-library.md")
+fi
+
+# Collect yesterday's evening review for context
+YESTERDAY=$(date -v-1d "+%Y-%m-%d")
+YESTERDAY_REVIEW=""
+if [ -f "$BRIEFINGS_DIR/$YESTERDAY-evening.md" ]; then
+    YESTERDAY_REVIEW=$(cat "$BRIEFINGS_DIR/$YESTERDAY-evening.md")
+fi
+
+# Detect how many consecutive days the evening review has been missing
+EVENING_REVIEW_GAP=0
+for i in $(seq 1 7); do
+    CHECK_DATE=$(date -v-${i}d "+%Y-%m-%d")
+    if [ -f "$BRIEFINGS_DIR/$CHECK_DATE-evening.md" ]; then
+        break
+    fi
+    # Only count days that had a morning briefing (so we don't count days the system wasn't used)
+    if [ -f "$BRIEFINGS_DIR/$CHECK_DATE.md" ]; then
+        EVENING_REVIEW_GAP=$((EVENING_REVIEW_GAP + 1))
+    fi
+done
+
+LOOP_HEALTH=""
+if [ "$EVENING_REVIEW_GAP" -ge 3 ]; then
+    LOOP_HEALTH="⚠️ LOOP BROKEN: No evening review has run for $EVENING_REVIEW_GAP days. The daily feedback loop is open — this briefing is planning blind without knowing what actually got done. Run 'bash $SCRIPT_DIR/evening-review.sh' tonight."
+elif [ "$EVENING_REVIEW_GAP" -ge 1 ]; then
+    LOOP_HEALTH="Note: No evening review ran yesterday. Tomorrow's briefing will be better if you run one tonight."
+fi
+
+# Collect fitness log for context
+FITNESS_LOG=""
+FITNESS_LOG_FILE="$OBSIDIAN_ROOT/Fitness log.md"
+if [ -f "$FITNESS_LOG_FILE" ]; then
+    FITNESS_LOG=$(tail -10 "$FITNESS_LOG_FILE")
+fi
+
+# Collect project statuses
+PROJECT_STATUSES=""
+for file in "$PROJECTS_DIR"/*.md; do
+    if [ -f "$file" ]; then
+        filename=$(basename "$file" .md)
+        status=$(sed -n '/^## Status/,/^---/p' "$file" | grep -E '^\- \*\*' || echo "  No status section")
+        PROJECT_STATUSES="$PROJECT_STATUSES
+$filename:
+$status
+"
+    fi
+done
+
+# Build the prompt
+PROMPT="It's $DAY_OF_WEEK, $TODAY. Run my morning briefing.
+
+Here's my to-do list:
+$TODO_CONTENT
+
+Here are today's calendar events:
+$CALENDAR_EVENTS
+
+Here are my project statuses:
+$PROJECT_STATUSES
+
+Here is my workout library (pick from these, matching today's day type):
+$WORKOUT_LIBRARY
+
+Yesterday's evening review (use this for context on what happened and what was suggested for today):
+$YESTERDAY_REVIEW
+
+Loop health status:
+$LOOP_HEALTH
+
+Recent fitness log (use this to know what workouts actually happened, not just what was planned):
+$FITNESS_LOG
+
+Based on all of this, give me:
+
+1. **Calendar** — quick summary of what's on today
+
+2. **Today's specific tasks** — pick 3-5 concrete, actionable steps I can complete TODAY from the current project and self-improvement sections. Format each task as a markdown checkbox (e.g. '- [ ] Research 3 AppleScript examples for creating calendar events'). These should be granular — not project-level goals but steps completable in a single session. Focus on the current project only — don't spread across multiple projects. Include at least one self-improvement task (fitness, learning, or career).
+
+3. **Proposed schedule** — slot today's tasks into the user's available hours as defined in CLAUDE.md. Use the scheduling principles and available hours table from the profile. Leave breathing room — not every slot needs filling.
+
+4. **Fitness** — one specific workout for today from the workout library provided. Vary it day to day — don't repeat the same routine. Include sets, reps, and rest times. Suggest a podcast or content to listen to during it if appropriate.
+
+5. **Learning** — one specific podcast episode, video, or article to consume today. Rules:
+   - Match it to what I'm actively working on this week, not generic inspiration.
+   - Prioritise practitioners (founders, builders, engineers) over pundits. Case studies and build logs over listicles.
+   - Match the length to the time slot — if it's for during a workout, keep it under 30 mins. If it's wind-down reading, keep it under 15 mins.
+   - Check recent briefings to avoid repeating the same content within a week.
+   - MUST include a direct clickable URL (YouTube, Spotify, or article). If you can't link it, don't recommend it.
+   - Prefer trusted sources from the CLAUDE.md learning content section, but don't limit to them.
+
+6. **Stuck / overdue** — check the *(added: YYYY-MM-DD)* dates on unchecked tasks in the to-do list. Today is $TODAY. Calculate how many days each unchecked task has been sitting there. Apply these rules:
+   - **2 days:** flag it — 'This has been on your list for 2 days. Is something blocking you?'
+   - **3+ days:** escalate — ask a direct question and suggest: break it down, reschedule, delegate, or drop it.
+   - **5+ days:** dedicate a section called 'We need to talk about [task]' — diagnose whether it's avoidance, a skill gap, motivation, or a sign it shouldn't be on the list. Suggest a concrete next move.
+
+7. **Naval check** — a short accountability section. Answer these honestly:
+   - **Ship check:** Will today produce something that exists in the world (code shipped, content published, feature deployed)? If every task today is planning/research/setup, flag it: 'You're preparing to prepare. What can you ship today?'
+   - **Ownership check:** Are today's tasks building toward something the user owns (equity, a product, an asset)? Or are they busywork?
+   - **Public output:** When was the last piece of public content (blog post, tweet, shipped product)? If it's been more than 7 days, flag it: 'Nothing has gone out under your name this week. What can you publish today?'
+   - **Hourly rate check:** Is any task on today's list below the user's aspirational hourly rate (see CLAUDE.md)? If so, suggest outsourcing or dropping it.
+
+Keep it concise. I should be able to read this in 2 minutes.
+
+IMPORTANT: At the very end of your response, after the stuck/overdue section, include a learning log entry block. This will be appended to the learning log. Format it exactly like this:
+
+\`\`\`learning
+- [ ] **\"Title\" — Creator/Source**
+  - [Platform](URL) | [Platform](URL)
+  - Brief description of what it covers and why it's relevant today.
+  - **Relevant to:** tags for what goal/project this relates to
+  - **Takeaways:**
+\`\`\`
+
+ALSO: At the very end of your response, after everything else, include a machine-readable schedule block. This will be parsed to create Apple Calendar events. Format it exactly like this, with no other text inside the block:
+
+\`\`\`schedule
+HH:MM|HH:MM|Event title|Context notes (what to do, where to look, specific details)
+HH:MM|HH:MM|Event title|Context notes
+\`\`\`
+
+The context notes field is IMPORTANT — it appears in the calendar event description on the user's phone. Include enough detail that they know exactly what to do when the event pops up, without needing to check their notes. For example:
+- Workout: include the routine name and key exercises
+- Deep work: include which file/feature to work on and the specific goal
+- Learning: include the title, URL, and why it's relevant
+- Writing/reflection: include the specific question or prompt to answer and where to write it
+
+Include ALL scheduled items from section 3 (skip 'Work — off limits' and free/decompress time). Include the workout and any learning time. Only include items that have a specific start and end time."
+
+# Output directories
+mkdir -p "$BRIEFINGS_DIR"
+OUTPUT_FILE="$BRIEFINGS_DIR/$TODAY.md"
+SCHEDULE_FILE="$SCRIPT_DIR/today-schedule.csv"
+
+# Run Claude in the project directory (with retry and failure handling)
+cd "$SCRIPT_DIR"
+MAX_RETRIES=2
+RETRY=0
+FULL_OUTPUT=""
+while [ $RETRY -le $MAX_RETRIES ]; do
+    FULL_OUTPUT=$(echo "$PROMPT" | claude --print 2>/dev/null) && break
+    RETRY=$((RETRY + 1))
+    if [ $RETRY -le $MAX_RETRIES ]; then
+        echo "Claude call failed. Retrying ($RETRY/$MAX_RETRIES)..."
+        sleep 5
+    fi
+done
+
+if [ -z "$FULL_OUTPUT" ]; then
+    echo "Morning briefing failed after $MAX_RETRIES retries." > "$OUTPUT_FILE"
+    echo "Run manually: cd $SCRIPT_DIR && bash morning-briefing.sh" >> "$OUTPUT_FILE"
+    osascript -e 'display notification "Morning briefing failed — run manually." with title "AI Chief of Staff" sound name "Basso"' 2>/dev/null
+    exit 1
+fi
+
+# Extract schedule block and save to CSV
+echo "$FULL_OUTPUT" | sed -n '/^```schedule$/,/^```$/p' | grep -v '```' > "$SCHEDULE_FILE"
+
+# Extract learning block and append to learning log
+LEARNING_LOG="$OBSIDIAN_ROOT/Learning log.md"
+LEARNING_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```learning$/,/^```$/p' | grep -v '```')
+if [ -n "$LEARNING_ENTRY" ]; then
+    echo "" >> "$LEARNING_LOG"
+    echo "## $TODAY" >> "$LEARNING_LOG"
+    echo "" >> "$LEARNING_LOG"
+    echo "$LEARNING_ENTRY" >> "$LEARNING_LOG"
+fi
+
+# Save briefing to Obsidian (without the raw schedule and learning blocks)
+echo "$FULL_OUTPUT" | sed '/^```schedule$/,/^```$/d' | sed '/^```learning$/,/^```$/d' > "$OUTPUT_FILE"
+
+# Add link to Daily briefings index note
+BRIEFINGS_INDEX="$OBSIDIAN_ROOT/Daily briefings.md"
+if [ -f "$BRIEFINGS_INDEX" ]; then
+    if ! grep -q "\[\[$TODAY\]\]" "$BRIEFINGS_INDEX"; then
+        echo "- [[$TODAY]] — $DAY_OF_WEEK" >> "$BRIEFINGS_INDEX"
+    fi
+fi
+
+# Show schedule and ask for confirmation before creating events
+if [ -s "$SCHEDULE_FILE" ]; then
+    echo ""
+    echo "=== Proposed schedule ==="
+    while IFS='|' read -r START END TITLE; do
+        [ -z "$START" ] && continue
+        echo "  $START – $END  $TITLE"
+    done < "$SCHEDULE_FILE"
+    echo "========================="
+    echo ""
+
+    # Check if running interactively (terminal attached)
+    if [ -t 0 ]; then
+        read -p "Add these events to Apple Calendar? (y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            bash "$SCRIPT_DIR/create-events.sh" "$SCHEDULE_FILE"
+            echo "" >> "$OUTPUT_FILE"
+            echo "---" >> "$OUTPUT_FILE"
+            echo "*Schedule added to Apple Calendar (Home).*" >> "$OUTPUT_FILE"
+        else
+            echo "Skipped — schedule not added to calendar."
+            echo "" >> "$OUTPUT_FILE"
+            echo "---" >> "$OUTPUT_FILE"
+            echo "*Schedule saved but not added to calendar. Run \`bash $SCRIPT_DIR/create-events.sh $SCRIPT_DIR/today-schedule.csv\` to add manually.*" >> "$OUTPUT_FILE"
+        fi
+    else
+        # Non-interactive (e.g. LaunchAgent) — save schedule, notify to confirm
+        echo "" >> "$OUTPUT_FILE"
+        echo "---" >> "$OUTPUT_FILE"
+        echo "*Schedule ready but not added to calendar. Run \`bash ~/Documents/ai-chief-of-staff/approve-schedule.sh\` to review and approve.*" >> "$OUTPUT_FILE"
+        osascript -e 'display notification "Morning briefing ready. Run approve-schedule.sh to add events to calendar." with title "AI Chief of Staff" sound name "Glass"'
+        exit 0
+    fi
+fi
+
+# Send macOS notification
+osascript -e 'display notification "Your morning briefing is ready in Obsidian." with title "AI Chief of Staff" sound name "Glass"'

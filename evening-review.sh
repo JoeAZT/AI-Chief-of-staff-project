@@ -109,7 +109,16 @@ public_output: yes/no
 For ship: did code get committed, a feature get built, or something tangible get produced?
 For workout: did the fitness log show a workout today?
 For learning: did the user consume learning content (podcast, article, video, course)?
-For public_output: did something go out publicly under the user's name (blog post, tweet, shipped product update)?"
+For public_output: did something go out publicly under the user's name (blog post, tweet, shipped product update)?
+
+3. If (and only if) today produced a win worth posting publicly — shipped code, a completed feature, a genuine build-in-public moment — draft social posts from it so posting takes 2 minutes. Skip this block entirely on unremarkable days; a forced daily post is spam. Write in first person as the builder, specific and concrete (what was built, why, what was hard), no hashtag soup, no motivational fluff. Format:
+\`\`\`draft
+## Tweet
+<under 280 chars, punchy, specific>
+
+## LinkedIn
+<3-6 short paragraphs, practical here's-what-I-built tone>
+\`\`\`"
 
 # Output file
 OUTPUT_FILE="$BRIEFINGS_DIR/$TODAY-evening.md"
@@ -143,6 +152,15 @@ if [ -n "$WINS_ENTRY" ]; then
     echo "$WINS_ENTRY" >> "$WINS_FILE"
 fi
 
+# Extract content draft and append to Content drafts.md
+DRAFT_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```draft$/,/^```$/p' | grep -v '```')
+if [ -n "$DRAFT_ENTRY" ]; then
+    DRAFTS_FILE="$OBSIDIAN_ROOT/Content drafts.md"
+    echo "" >> "$DRAFTS_FILE"
+    echo "# $TODAY ($DAY_OF_WEEK)" >> "$DRAFTS_FILE"
+    echo "$DRAFT_ENTRY" >> "$DRAFTS_FILE"
+fi
+
 # Extract gamification data and update streaks
 GAMIFICATION=$(echo "$FULL_OUTPUT" | sed -n '/^```gamification$/,/^```$/p' | grep -v '```')
 STREAK_FLAGS=""
@@ -164,7 +182,11 @@ if [ -n "$STREAK_FLAGS" ]; then
 fi
 
 # Save briefing to Obsidian (without the machine-readable blocks)
-echo "$FULL_OUTPUT" | sed '/^```wins$/,/^```$/d' | sed '/^```gamification$/,/^```$/d' > "$OUTPUT_FILE"
+echo "$FULL_OUTPUT" | sed '/^```wins$/,/^```$/d' | sed '/^```gamification$/,/^```$/d' | sed '/^```draft$/,/^```$/d' > "$OUTPUT_FILE"
 
 # Send notification
-osascript -e 'display notification "Your evening review is ready in Obsidian." with title "AI Chief of Staff" sound name "Purr"'
+if [ -n "$DRAFT_ENTRY" ]; then
+    osascript -e 'display notification "Evening review ready — a post draft is waiting in Content drafts.md." with title "AI Chief of Staff" sound name "Purr"'
+else
+    osascript -e 'display notification "Your evening review is ready in Obsidian." with title "AI Chief of Staff" sound name "Purr"'
+fi

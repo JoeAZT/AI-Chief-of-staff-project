@@ -25,6 +25,16 @@ if ! command -v claude &> /dev/null; then
     exit 1
 fi
 
+# Initialise gamification data files from templates
+if [ ! -f "$SCRIPT_DIR/streaks.json" ]; then
+    cp "$SCRIPT_DIR/streaks.template.json" "$SCRIPT_DIR/streaks.json"
+    echo "Created streaks.json"
+fi
+if [ ! -f "$SCRIPT_DIR/milestones.json" ]; then
+    cp "$SCRIPT_DIR/milestones.template.json" "$SCRIPT_DIR/milestones.json"
+    echo "Created milestones.json"
+fi
+
 # Run the onboarding prompt in interactive mode
 cd "$SCRIPT_DIR"
 claude --system-prompt "$(cat "$SCRIPT_DIR/onboarding-prompt.md")" "Hi! I'd like to set up my AI Chief of Staff. Let's go."

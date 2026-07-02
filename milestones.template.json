@@ -1,0 +1,21 @@
+{
+  "builder": [
+    { "id": "first_commit", "name": "First commit", "achieved": false, "date": null },
+    { "id": "first_feature", "name": "First feature shipped", "achieved": false, "date": null },
+    { "id": "first_public_post", "name": "First public post", "achieved": false, "date": null },
+    { "id": "first_user", "name": "First external user", "achieved": false, "date": null },
+    { "id": "first_paying_customer", "name": "First paying customer", "achieved": false, "date": null }
+  ],
+  "fitness": [
+    { "id": "first_workout", "name": "First workout logged", "achieved": false, "date": null },
+    { "id": "10_workouts", "name": "10 workouts logged", "achieved": false, "date": null, "threshold": 10 },
+    { "id": "4_week_consistency", "name": "4-week workout consistency", "achieved": false, "date": null },
+    { "id": "50_workouts", "name": "50 workouts logged", "achieved": false, "date": null, "threshold": 50 },
+    { "id": "100_workouts", "name": "100 workouts logged", "achieved": false, "date": null, "threshold": 100 }
+  ],
+  "system": [
+    { "id": "first_week", "name": "First week using CoS", "achieved": false, "date": null },
+    { "id": "30_day_streak", "name": "30-day streak (any category)", "achieved": false, "date": null },
+    { "id": "100_briefings", "name": "100 briefings generated", "achieved": false, "date": null }
+  ]
+}

@@ -3,7 +3,9 @@ CLAUDE.md
 config.sh
 workout-library.md
 
-# Runtime files
+# Runtime data — personal to each user
+streaks.json
+milestones.json
 today-schedule.csv
 logs/
 

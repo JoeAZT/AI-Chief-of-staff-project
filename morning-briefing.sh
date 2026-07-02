@@ -62,6 +62,30 @@ if [ -f "$FITNESS_LOG_FILE" ]; then
     FITNESS_LOG=$(tail -10 "$FITNESS_LOG_FILE")
 fi
 
+# Collect streak data
+STREAK_DISPLAY=""
+if [ -f "$SCRIPT_DIR/streaks.json" ]; then
+    STREAK_DISPLAY=$(python3 -c "
+import json
+with open('$SCRIPT_DIR/streaks.json', 'r') as f:
+    data = json.load(f)
+lines = []
+for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learning'), ('public_output', 'Public Output')]:
+    d = data[cat]
+    cur = d['current']
+    best = d['best']
+    grace = '(grace day available)' if not d.get('grace_used_this_week', False) else '(grace day used this week)'
+    lines.append(f'{label}: {cur} days {grace} | Best: {best} days')
+print('\n'.join(lines))
+" 2>/dev/null || echo "Could not read streaks.")
+fi
+
+# Check for new milestones
+NEW_MILESTONES=""
+if [ -f "$SCRIPT_DIR/check-milestones.sh" ]; then
+    NEW_MILESTONES=$(bash "$SCRIPT_DIR/check-milestones.sh" 2>/dev/null || echo "")
+fi
+
 # Collect project statuses
 PROJECT_STATUSES=""
 for file in "$PROJECTS_DIR"/*.md; do
@@ -99,17 +123,28 @@ $LOOP_HEALTH
 Recent fitness log (use this to know what workouts actually happened, not just what was planned):
 $FITNESS_LOG
 
+Current streaks:
+$STREAK_DISPLAY
+
+Newly achieved milestones (announce these if any):
+$NEW_MILESTONES
+
 Based on all of this, give me:
 
-1. **Calendar** — quick summary of what's on today
+1. **Streaks** — display the current streaks prominently at the top using this format:
+   🔥 Ship: X days | 💪 Workout: X days | 📚 Learning: X days | 📣 Public Output: X days
+   If any streak is at a personal best, add '(PB!)' after the number.
+   If a milestone was just achieved, announce it: '🎯 Milestone unlocked: [name]!'
 
-2. **Today's specific tasks** — pick 3-5 concrete, actionable steps I can complete TODAY from the current project and self-improvement sections. Format each task as a markdown checkbox (e.g. '- [ ] Research 3 AppleScript examples for creating calendar events'). These should be granular — not project-level goals but steps completable in a single session. Focus on the current project only — don't spread across multiple projects. Include at least one self-improvement task (fitness, learning, or career).
+2. **Calendar** — quick summary of what's on today
 
-3. **Proposed schedule** — slot today's tasks into the user's available hours as defined in CLAUDE.md. Use the scheduling principles and available hours table from the profile. Leave breathing room — not every slot needs filling.
+3. **Today's specific tasks** — pick 3-5 concrete, actionable steps I can complete TODAY from the current project and self-improvement sections. Format each task as a markdown checkbox (e.g. '- [ ] Research 3 AppleScript examples for creating calendar events'). These should be granular — not project-level goals but steps completable in a single session. Focus on the current project only — don't spread across multiple projects. Include at least one self-improvement task (fitness, learning, or career).
 
-4. **Fitness** — one specific workout for today from the workout library provided. Vary it day to day — don't repeat the same routine. Include sets, reps, and rest times. Suggest a podcast or content to listen to during it if appropriate.
+4. **Proposed schedule** — slot today's tasks into the user's available hours as defined in CLAUDE.md. Use the scheduling principles and available hours table from the profile. Leave breathing room — not every slot needs filling.
 
-5. **Learning** — one specific podcast episode, video, or article to consume today. Rules:
+5. **Fitness** — one specific workout for today from the workout library provided. Vary it day to day — don't repeat the same routine. Include sets, reps, and rest times. Suggest a podcast or content to listen to during it if appropriate.
+
+6. **Learning** — one specific podcast episode, video, or article to consume today. Rules:
    - Match it to what I'm actively working on this week, not generic inspiration.
    - Prioritise practitioners (founders, builders, engineers) over pundits. Case studies and build logs over listicles.
    - Match the length to the time slot — if it's for during a workout, keep it under 30 mins. If it's wind-down reading, keep it under 15 mins.
@@ -117,12 +152,12 @@ Based on all of this, give me:
    - MUST include a direct clickable URL (YouTube, Spotify, or article). If you can't link it, don't recommend it.
    - Prefer trusted sources from the CLAUDE.md learning content section, but don't limit to them.
 
-6. **Stuck / overdue** — check the *(added: YYYY-MM-DD)* dates on unchecked tasks in the to-do list. Today is $TODAY. Calculate how many days each unchecked task has been sitting there. Apply these rules:
+7. **Stuck / overdue** — check the *(added: YYYY-MM-DD)* dates on unchecked tasks in the to-do list. Today is $TODAY. Calculate how many days each unchecked task has been sitting there. Apply these rules:
    - **2 days:** flag it — 'This has been on your list for 2 days. Is something blocking you?'
    - **3+ days:** escalate — ask a direct question and suggest: break it down, reschedule, delegate, or drop it.
    - **5+ days:** dedicate a section called 'We need to talk about [task]' — diagnose whether it's avoidance, a skill gap, motivation, or a sign it shouldn't be on the list. Suggest a concrete next move.
 
-7. **Naval check** — a short accountability section. Answer these honestly:
+8. **Naval check** — a short accountability section. Answer these honestly:
    - **Ship check:** Will today produce something that exists in the world (code shipped, content published, feature deployed)? If every task today is planning/research/setup, flag it: 'You're preparing to prepare. What can you ship today?'
    - **Ownership check:** Are today's tasks building toward something the user owns (equity, a product, an asset)? Or are they busywork?
    - **Public output:** When was the last piece of public content (blog post, tweet, shipped product)? If it's been more than 7 days, flag it: 'Nothing has gone out under your name this week. What can you publish today?'

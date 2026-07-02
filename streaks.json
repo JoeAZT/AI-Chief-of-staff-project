@@ -1,0 +1,30 @@
+{
+  "ship": {
+    "current": 0,
+    "best": 0,
+    "last_date": null,
+    "grace_used_this_week": false,
+    "grace_week_start": null
+  },
+  "workout": {
+    "current": 0,
+    "best": 0,
+    "last_date": null,
+    "grace_used_this_week": false,
+    "grace_week_start": null
+  },
+  "learning": {
+    "current": 0,
+    "best": 0,
+    "last_date": null,
+    "grace_used_this_week": false,
+    "grace_week_start": null
+  },
+  "public_output": {
+    "current": 0,
+    "best": 0,
+    "last_date": null,
+    "grace_used_this_week": false,
+    "grace_week_start": null
+  }
+}

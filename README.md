@@ -49,8 +49,8 @@ The system then uses these files every time it runs, so the briefings are specif
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-chief-of-staff.git
-cd ai-chief-of-staff
+git clone https://github.com/JoeAZT/AI-Chief-of-staff-project.git
+cd AI-Chief-of-staff-project
 bash setup.sh
 ```
 
@@ -92,7 +92,7 @@ Set up macOS LaunchAgents to run the briefing and review automatically:
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/YOUR_USERNAME/ai-chief-of-staff/morning-briefing.sh</string>
+        <string>/Users/JoeAZT/ai-chief-of-staff/morning-briefing.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -160,4 +160,4 @@ MIT
 
 ---
 
-*Built by [Joe Taylor](https://github.com/YOUR_USERNAME). Inspired by [Jessie Yorke's AI Chief of Staff guide](https://www.jessieyorke.com/guides/ai-chief-of-staff.html).*
+*Built by [Joe Taylor](https://github.com/JoeAZT). Inspired by [Jessie Yorke's AI Chief of Staff guide](https://www.jessieyorke.com/guides/ai-chief-of-staff.html).*

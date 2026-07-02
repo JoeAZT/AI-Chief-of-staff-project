@@ -36,6 +36,54 @@ if [ -f "$TODO_FILE" ]; then
     TODO_CONTENT=$(cat "$TODO_FILE")
 fi
 
+# Collect wins from this week
+WINS_CONTENT=""
+WINS_FILE="$OBSIDIAN_ROOT/Wins.md"
+if [ -f "$WINS_FILE" ]; then
+    # Extract wins from the last 7 days
+    WINS_CONTENT=$(python3 -c "
+import re, sys
+from datetime import datetime, timedelta
+
+today = datetime.strptime('$TODAY', '%Y-%m-%d')
+week_ago = today - timedelta(days=7)
+
+with open('$WINS_FILE', 'r') as f:
+    content = f.read()
+
+# Find all dated sections and their content
+sections = re.split(r'### (\d{4}-\d{2}-\d{2})', content)
+result = []
+for i in range(1, len(sections), 2):
+    date_str = sections[i]
+    body = sections[i+1] if i+1 < len(sections) else ''
+    try:
+        d = datetime.strptime(date_str, '%Y-%m-%d')
+        if d >= week_ago:
+            result.append(f'### {date_str}{body}')
+    except ValueError:
+        pass
+
+if result:
+    print('\n'.join(result))
+else:
+    print('No wins logged this week.')
+" 2>/dev/null || echo "Could not read wins.")
+fi
+
+# Collect streak data
+STREAK_DISPLAY=""
+if [ -f "$SCRIPT_DIR/streaks.json" ]; then
+    STREAK_DISPLAY=$(python3 -c "
+import json
+with open('$SCRIPT_DIR/streaks.json', 'r') as f:
+    data = json.load(f)
+for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learning'), ('public_output', 'Public Output')]:
+    d = data[cat]
+    print(f'{label}: {d[\"current\"]} days (best: {d[\"best\"]})')
+" 2>/dev/null || echo "Could not read streaks.")
+fi
+
 # Collect project statuses
 PROJECT_STATUSES=""
 for file in "$PROJECTS_DIR"/*.md; do
@@ -60,6 +108,12 @@ $TODO_CONTENT
 Here are the project statuses:
 $PROJECT_STATUSES
 
+This week's wins log:
+$WINS_CONTENT
+
+Current streaks:
+$STREAK_DISPLAY
+
 Give me a weekly performance review covering:
 
 1. **Week summary** — what actually got done this week? List concrete achievements, not just 'worked on X'. Be specific.
@@ -72,7 +126,10 @@ Give me a weekly performance review covering:
    - Was fitness consistent? How many workouts happened vs the 4/week target?
    - Was learning/content consumption happening or getting skipped?
 
-4. **Wins** — what went well? Acknowledge real progress, even if small.
+4. **Wins** — reference the wins log above. Summarise what was achieved this week: features shipped, workouts completed, content published, milestones hit. Frame it as evidence the system is working. If the wins log is empty, flag it — 'Nothing was logged in the wins file this week. Either nothing got done, or the evening reviews aren't capturing achievements.'
+
+4b. **Streaks** — report the current streak status. Are they growing, stagnating, or recently reset? If any streak broke this week, note what happened. If a personal best was set, celebrate it. Show the streaks prominently:
+   🔥 Ship: X days | 💪 Workout: X days | 📚 Learning: X days | 📣 Public Output: X days
 
 5. **Problems** — what didn't work? Be direct. If the schedule was too packed, say so. If tasks were too vague, say so. If avoidance is happening, name it.
 
@@ -101,6 +158,19 @@ OUTPUT_FILE="$BRIEFINGS_DIR/$TODAY-weekly-review.md"
 
 cd "$SCRIPT_DIR"
 echo "$PROMPT" | claude --print > "$OUTPUT_FILE"
+
+# Reset weekly grace day flags (new week starts)
+if [ -f "$SCRIPT_DIR/streaks.json" ]; then
+    python3 -c "
+import json
+with open('$SCRIPT_DIR/streaks.json', 'r') as f:
+    data = json.load(f)
+for cat in ['ship', 'workout', 'learning', 'public_output']:
+    data[cat]['grace_used_this_week'] = False
+with open('$SCRIPT_DIR/streaks.json', 'w') as f:
+    json.dump(data, f, indent=2)
+" 2>/dev/null
+fi
 
 # Notification
 osascript -e 'display notification "Your weekly review is ready in Obsidian." with title "AI Chief of Staff — Weekly Review" sound name "Glass"'

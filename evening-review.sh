@@ -10,6 +10,7 @@ OBSIDIAN_ROOT="$BRIEFING_DIR"
 TODO_FILE="$OBSIDIAN_ROOT/To-do.md"
 PROJECTS_DIR="$OBSIDIAN_ROOT/Project ideas"
 BRIEFINGS_DIR="$OBSIDIAN_ROOT/Daily briefings"
+WINS_FILE="$OBSIDIAN_ROOT/Wins.md"
 TODAY=$(date "+%Y-%m-%d")
 DAY_OF_WEEK=$(date "+%A")
 
@@ -87,7 +88,28 @@ Give me:
 
 Keep it short. This should take 1 minute to read.
 
-Do NOT include a schedule block — this is a review, not a plan."
+Do NOT include a schedule block — this is a review, not a plan.
+
+IMPORTANT: At the very end of your response, include two machine-readable blocks:
+
+1. A wins block listing any concrete achievements from today (shipped code, completed features, published content, workouts done, milestones hit). If nothing was achieved today, leave it empty. Format:
+\`\`\`wins
+- Description of win 1
+- Description of win 2
+\`\`\`
+
+2. A gamification block with yes/no for each tracking category. Be honest — only mark 'yes' if the evidence supports it:
+\`\`\`gamification
+ship: yes/no
+workout: yes/no
+learning: yes/no
+public_output: yes/no
+\`\`\`
+
+For ship: did code get committed, a feature get built, or something tangible get produced?
+For workout: did the fitness log show a workout today?
+For learning: did the user consume learning content (podcast, article, video, course)?
+For public_output: did something go out publicly under the user's name (blog post, tweet, shipped product update)?"
 
 # Output file
 OUTPUT_FILE="$BRIEFINGS_DIR/$TODAY-evening.md"
@@ -113,7 +135,36 @@ if [ -z "$FULL_OUTPUT" ]; then
     exit 1
 fi
 
-echo "$FULL_OUTPUT" > "$OUTPUT_FILE"
+# Extract wins and append to Wins.md
+WINS_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```wins$/,/^```$/p' | grep -v '```')
+if [ -n "$WINS_ENTRY" ]; then
+    echo "" >> "$WINS_FILE"
+    echo "### $TODAY ($DAY_OF_WEEK)" >> "$WINS_FILE"
+    echo "$WINS_ENTRY" >> "$WINS_FILE"
+fi
+
+# Extract gamification data and update streaks
+GAMIFICATION=$(echo "$FULL_OUTPUT" | sed -n '/^```gamification$/,/^```$/p' | grep -v '```')
+STREAK_FLAGS=""
+if echo "$GAMIFICATION" | grep -q "ship: yes"; then
+    STREAK_FLAGS="$STREAK_FLAGS --ship"
+fi
+if echo "$GAMIFICATION" | grep -q "workout: yes"; then
+    STREAK_FLAGS="$STREAK_FLAGS --workout"
+fi
+if echo "$GAMIFICATION" | grep -q "learning: yes"; then
+    STREAK_FLAGS="$STREAK_FLAGS --learning"
+fi
+if echo "$GAMIFICATION" | grep -q "public_output: yes"; then
+    STREAK_FLAGS="$STREAK_FLAGS --public"
+fi
+
+if [ -n "$STREAK_FLAGS" ]; then
+    bash "$SCRIPT_DIR/update-streaks.sh" $STREAK_FLAGS
+fi
+
+# Save briefing to Obsidian (without the machine-readable blocks)
+echo "$FULL_OUTPUT" | sed '/^```wins$/,/^```$/d' | sed '/^```gamification$/,/^```$/d' > "$OUTPUT_FILE"
 
 # Send notification
 osascript -e 'display notification "Your evening review is ready in Obsidian." with title "AI Chief of Staff" sound name "Purr"'

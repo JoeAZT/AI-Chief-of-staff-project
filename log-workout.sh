@@ -40,9 +40,9 @@ while IFS='|' read -r _ date _; do
     fi
 done < <(grep "^|" "$LOG_FILE" | grep -v "Date" | grep -v "---")
 
-# Update the tracker in To-do.md
+# Update the tracker in To-do.md, preserving the user's own weekly target
 if [ -f "$TODO_FILE" ]; then
-    sed -i '' "s/Track workouts completed this week: [0-9]*\/4/Track workouts completed this week: ${WEEK_COUNT}\/4/" "$TODO_FILE"
+    sed -i '' -E "s|(Track workouts completed this week: )[0-9]+/([0-9]+)|\1${WEEK_COUNT}/\2|" "$TODO_FILE"
 fi
 
-echo "Logged: $WORKOUT_TYPE on $DAY_OF_WEEK $TODAY ($WEEK_COUNT/4 this week)"
+echo "Logged: $WORKOUT_TYPE on $DAY_OF_WEEK $TODAY ($WEEK_COUNT this week)"

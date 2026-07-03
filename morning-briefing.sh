@@ -67,14 +67,22 @@ STREAK_DISPLAY=""
 if [ -f "$SCRIPT_DIR/streaks.json" ]; then
     STREAK_DISPLAY=$(python3 -c "
 import json
+from datetime import datetime
 with open('$SCRIPT_DIR/streaks.json', 'r') as f:
     data = json.load(f)
+today = datetime.strptime('$TODAY', '%Y-%m-%d')
 lines = []
 for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learning'), ('public_output', 'Public Output')]:
     d = data[cat]
     cur = d['current']
     best = d['best']
-    grace = '(grace day available)' if not d.get('grace_used_this_week', False) else '(grace day used this week)'
+    grace_used = d.get('grace_used_this_week', False)
+    gap = (today - datetime.strptime(d['last_date'], '%Y-%m-%d')).days if d['last_date'] else None
+    # streaks.json only updates on completion — a stale last_date means the streak already broke
+    if cur > 0 and gap is not None and (gap > 2 or (gap == 2 and grace_used)):
+        lines.append(f'{label}: 0 days — streak broke {gap} days ago (was {cur}, best: {best})')
+        continue
+    grace = '(grace day available)' if not grace_used else '(grace day used this week)'
     lines.append(f'{label}: {cur} days {grace} | Best: {best} days')
 lines.append(f\"Momentum: {data.get('momentum', {}).get('score', 0)}/100\")
 print('\n'.join(lines))
@@ -95,10 +103,14 @@ if [ -f "$SCRIPT_DIR/current-challenge.md" ]; then
     CURRENT_CHALLENGE=$(cat "$SCRIPT_DIR/current-challenge.md")
 fi
 
-# Check for new milestones
+# Check for new milestones — read from the pending queue so announcements
+# survive a failed briefing run
 NEW_MILESTONES=""
 if [ -f "$SCRIPT_DIR/check-milestones.sh" ]; then
-    NEW_MILESTONES=$(bash "$SCRIPT_DIR/check-milestones.sh" 2>/dev/null || echo "")
+    bash "$SCRIPT_DIR/check-milestones.sh" > /dev/null 2>&1 || true
+fi
+if [ -f "$SCRIPT_DIR/pending-milestones.txt" ]; then
+    NEW_MILESTONES=$(sort -u "$SCRIPT_DIR/pending-milestones.txt")
 fi
 
 # Collect project statuses
@@ -161,6 +173,7 @@ Based on all of this, give me:
 2. **Calendar** — quick summary of what's on today
 
 3. **Today's specific tasks** — pick 3-5 concrete, actionable steps I can complete TODAY from the current project and self-improvement sections. Format each task as a markdown checkbox (e.g. '- [ ] Research 3 AppleScript examples for creating calendar events'). These should be granular — not project-level goals but steps completable in a single session. Focus on the current project only — don't spread across multiple projects. Include at least one self-improvement task (fitness, learning, or career).
+   If fewer than 14 days are tracked in the task history ($DAYS_TRACKED so far), end the task list with this exact line: '☑️ *Tick these off in this note as you go — it's how I know what actually happened.*'
 
 4. **Proposed schedule** — slot today's tasks into the user's available hours as defined in CLAUDE.md. Use the scheduling principles and available hours table from the profile. Leave breathing room — not every slot needs filling.
    Smart scheduling from the task completion history above: if 14+ days are tracked, use the data — schedule task types at the times they actually get completed, avoid slots where they're consistently skipped, and mention one insight when you adjust (e.g. 'You complete 85% of evening tasks but only 40% of morning ones — deep work moved to 19:00'). If fewer than 14 days are tracked, add one line: '📊 Learning your patterns: day $DAYS_TRACKED/14' and draw no conclusions from the data yet.
@@ -238,6 +251,9 @@ if [ -z "$FULL_OUTPUT" ]; then
     osascript -e 'display notification "Morning briefing failed — run manually." with title "AI Chief of Staff" sound name "Basso"' 2>/dev/null
     exit 1
 fi
+
+# Briefing succeeded — pending milestones have been announced
+rm -f "$SCRIPT_DIR/pending-milestones.txt"
 
 # Extract schedule block and save to CSV
 echo "$FULL_OUTPUT" | sed -n '/^```schedule$/,/^```$/p' | grep -v '```' > "$SCHEDULE_FILE"

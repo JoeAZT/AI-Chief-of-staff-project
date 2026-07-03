@@ -174,8 +174,18 @@ CALENDAR_NAME="[their calendar name]"
 
 After generating everything, show the user:
 - What files were created
-- How to run their first morning briefing: `cd ~/Documents/ai-chief-of-staff && bash morning-briefing.sh`
+- How to run their first morning briefing: `bash morning-briefing.sh` (from this folder)
 - How to approve the schedule: `bash approve-schedule.sh`
 - How to log a workout: `bash log-workout.sh "routine name"`
 - How to run the evening review: `bash evening-review.sh`
-- Remind them: "Run the morning briefing now to see your first daily plan."
+- How to make it automatic: `bash install-automation.sh` — sets up the daily 
+  runs at times they choose. Recommend this; the system works best when it 
+  reaches out to them, not the other way round.
+- **The one habit that matters:** tick tasks off in the briefing note 
+  (`- [ ]` → `- [x]`) as they complete them. That's how the system knows what 
+  actually happened — streaks, reviews, and the pattern-learning scheduler 
+  all depend on it.
+- Set expectations honestly: the first few briefings will be the weakest ones 
+  they ever see — the system gets sharper as it learns their patterns (about 
+  2 weeks). Running the evening review tonight, even with little to report, 
+  gives tomorrow's briefing real context to work from.

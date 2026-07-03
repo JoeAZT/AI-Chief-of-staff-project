@@ -98,7 +98,11 @@ for m in milestones['builder']:
 with open('$MILESTONES_FILE', 'w') as f:
     json.dump(milestones, f, indent=2)
 
-# Output newly achieved milestones
-for name in newly_achieved:
-    print(name)
+# Output newly achieved milestones and queue them for announcement.
+# The briefing clears the pending file only after a successful run, so an
+# achievement can't be marked achieved and then never announced.
+with open('$SCRIPT_DIR/pending-milestones.txt', 'a') as f:
+    for name in newly_achieved:
+        print(name)
+        f.write(name + '\n')
 "

@@ -76,11 +76,18 @@ STREAK_DISPLAY=""
 if [ -f "$SCRIPT_DIR/streaks.json" ]; then
     STREAK_DISPLAY=$(python3 -c "
 import json
+from datetime import datetime
 with open('$SCRIPT_DIR/streaks.json', 'r') as f:
     data = json.load(f)
+today = datetime.strptime('$TODAY', '%Y-%m-%d')
 for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learning'), ('public_output', 'Public Output')]:
     d = data[cat]
-    print(f'{label}: {d[\"current\"]} days (best: {d[\"best\"]})')
+    gap = (today - datetime.strptime(d['last_date'], '%Y-%m-%d')).days if d['last_date'] else None
+    # streaks.json only updates on completion — a stale last_date means the streak already broke
+    if d['current'] > 0 and gap is not None and (gap > 2 or (gap == 2 and d.get('grace_used_this_week', False))):
+        print(f'{label}: 0 days — streak broke {gap} days ago (was {d[\"current\"]}, best: {d[\"best\"]})')
+    else:
+        print(f'{label}: {d[\"current\"]} days (best: {d[\"best\"]})')
 print(f'Momentum: {data.get(\"momentum\", {}).get(\"score\", 0)}/100')
 " 2>/dev/null || echo "Could not read streaks.")
 fi
@@ -135,7 +142,7 @@ Give me a weekly performance review covering:
 3. **Patterns** — what patterns do you see?
    - Which time slots were most productive?
    - Were any tasks consistently skipped or rescheduled?
-   - Was fitness consistent? How many workouts happened vs the 4/week target?
+   - Was fitness consistent? How many workouts happened vs the weekly target in the user's profile (CLAUDE.md)?
    - Was learning/content consumption happening or getting skipped?
 
 4. **Wins** — reference the wins log above. Summarise what was achieved this week: features shipped, workouts completed, content published, milestones hit. Frame it as evidence the system is working. If the wins log is empty, flag it — 'Nothing was logged in the wins file this week. Either nothing got done, or the evening reviews aren't capturing achievements.'

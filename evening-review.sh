@@ -49,7 +49,23 @@ if [ -f "$FITNESS_LOG_FILE" ]; then
     FITNESS_LOG=$(tail -10 "$FITNESS_LOG_FILE")
 fi
 
+# Interactive check-in — the user's direct answers beat inferring from file state.
+# Skipped on non-interactive (LaunchAgent) runs.
+CHECKIN=""
+if [ -t 0 ]; then
+    echo "Quick check-in — press Enter to skip any question."
+    read -p "Did today's workout happen? (y/n) " CHECKIN_WORKOUT || true
+    read -p "Did you ship anything today? What? " CHECKIN_SHIP || true
+    read -p "Anything else done, skipped, or blocking you? " CHECKIN_NOTES || true
+    CHECKIN="The user just answered a direct check-in (trust these answers over anything inferred from the files):
+- Workout happened: ${CHECKIN_WORKOUT:-not answered}
+- Shipped today: ${CHECKIN_SHIP:-not answered}
+- Notes: ${CHECKIN_NOTES:-not answered}"
+fi
+
 PROMPT="It's $DAY_OF_WEEK evening, $TODAY. Run my evening review.
+
+$CHECKIN
 
 Here's what was planned this morning:
 $TODAY_BRIEFING

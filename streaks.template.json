@@ -26,5 +26,9 @@
     "last_date": null,
     "grace_used_this_week": false,
     "grace_week_start": null
+  },
+  "momentum": {
+    "score": 0,
+    "last_date": null
   }
 }

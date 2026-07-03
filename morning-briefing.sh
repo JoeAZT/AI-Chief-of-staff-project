@@ -76,8 +76,23 @@ for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learn
     best = d['best']
     grace = '(grace day available)' if not d.get('grace_used_this_week', False) else '(grace day used this week)'
     lines.append(f'{label}: {cur} days {grace} | Best: {best} days')
+lines.append(f\"Momentum: {data.get('momentum', {}).get('score', 0)}/100\")
 print('\n'.join(lines))
 " 2>/dev/null || echo "Could not read streaks.")
+fi
+
+# Collect task completion history for pattern analysis
+TASK_LOG=""
+DAYS_TRACKED=0
+if [ -f "$SCRIPT_DIR/task-log.csv" ]; then
+    TASK_LOG=$(cat "$SCRIPT_DIR/task-log.csv")
+    DAYS_TRACKED=$(cut -d'|' -f1 "$SCRIPT_DIR/task-log.csv" | sort -u | wc -l | tr -d ' ')
+fi
+
+# Collect this week's challenge (set by the weekly review)
+CURRENT_CHALLENGE=""
+if [ -f "$SCRIPT_DIR/current-challenge.md" ]; then
+    CURRENT_CHALLENGE=$(cat "$SCRIPT_DIR/current-challenge.md")
 fi
 
 # Check for new milestones
@@ -129,18 +144,26 @@ $STREAK_DISPLAY
 Newly achieved milestones (announce these if any):
 $NEW_MILESTONES
 
+Task completion history ($DAYS_TRACKED days tracked, format: date|day|time_slot|type|title|completed):
+$TASK_LOG
+
+This week's challenge (set by the weekly review):
+$CURRENT_CHALLENGE
+
 Based on all of this, give me:
 
 1. **Streaks** — display the current streaks prominently at the top using this format:
-   🔥 Ship: X days | 💪 Workout: X days | 📚 Learning: X days | 📣 Public Output: X days
+   🔥 Ship: X days | 💪 Workout: X days | 📚 Learning: X days | 📣 Public Output: X days | ⚡ Momentum: X/100
    If any streak is at a personal best, add '(PB!)' after the number.
    If a milestone was just achieved, announce it: '🎯 Milestone unlocked: [name]!'
+   If there's a challenge set above, show it here too: '🎯 This week's challenge: [challenge]' — and note progress if any of this week's activity counts toward it.
 
 2. **Calendar** — quick summary of what's on today
 
 3. **Today's specific tasks** — pick 3-5 concrete, actionable steps I can complete TODAY from the current project and self-improvement sections. Format each task as a markdown checkbox (e.g. '- [ ] Research 3 AppleScript examples for creating calendar events'). These should be granular — not project-level goals but steps completable in a single session. Focus on the current project only — don't spread across multiple projects. Include at least one self-improvement task (fitness, learning, or career).
 
 4. **Proposed schedule** — slot today's tasks into the user's available hours as defined in CLAUDE.md. Use the scheduling principles and available hours table from the profile. Leave breathing room — not every slot needs filling.
+   Smart scheduling from the task completion history above: if 14+ days are tracked, use the data — schedule task types at the times they actually get completed, avoid slots where they're consistently skipped, and mention one insight when you adjust (e.g. 'You complete 85% of evening tasks but only 40% of morning ones — deep work moved to 19:00'). If fewer than 14 days are tracked, add one line: '📊 Learning your patterns: day $DAYS_TRACKED/14' and draw no conclusions from the data yet.
 
 5. **Fitness** — one specific workout for today from the workout library provided. Vary it day to day — don't repeat the same routine. Include sets, reps, and rest times. Suggest a podcast or content to listen to during it if appropriate.
 

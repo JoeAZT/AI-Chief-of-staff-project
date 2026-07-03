@@ -104,6 +104,29 @@ update_category "workout" "$W"
 update_category "learning" "$L"
 update_category "public_output" "$P"
 
+# Update momentum score (0-100): grows with active categories, decays slowly on zero days
+python3 -c "
+import json
+
+with open('$STREAKS_FILE', 'r') as f:
+    data = json.load(f)
+
+m = data.setdefault('momentum', {'score': 0, 'last_date': None})
+active = [$S, $W, $L, $P].count(True)
+
+if m['last_date'] != '$TODAY':
+    # ponytail: +3 per active category, -2 on zero days — tune if it feels off after a few weeks
+    if active > 0:
+        m['score'] = min(100, m['score'] + 3 * active)
+    else:
+        m['score'] = max(0, m['score'] - 2)
+    m['last_date'] = '$TODAY'
+
+with open('$STREAKS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+print(f\"Momentum: {m['score']}/100\")
+"
+
 # Print current streaks
 python3 -c "
 import json

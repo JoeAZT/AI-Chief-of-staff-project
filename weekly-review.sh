@@ -81,7 +81,16 @@ with open('$SCRIPT_DIR/streaks.json', 'r') as f:
 for cat, label in [('ship', 'Ship'), ('workout', 'Workout'), ('learning', 'Learning'), ('public_output', 'Public Output')]:
     d = data[cat]
     print(f'{label}: {d[\"current\"]} days (best: {d[\"best\"]})')
+print(f'Momentum: {data.get(\"momentum\", {}).get(\"score\", 0)}/100')
 " 2>/dev/null || echo "Could not read streaks.")
+fi
+
+# Collect task completion history
+TASK_LOG=""
+DAYS_TRACKED=0
+if [ -f "$SCRIPT_DIR/task-log.csv" ]; then
+    TASK_LOG=$(cat "$SCRIPT_DIR/task-log.csv")
+    DAYS_TRACKED=$(cut -d'|' -f1 "$SCRIPT_DIR/task-log.csv" | sort -u | wc -l | tr -d ' ')
 fi
 
 # Collect project statuses
@@ -113,6 +122,9 @@ $WINS_CONTENT
 
 Current streaks:
 $STREAK_DISPLAY
+
+Task completion history ($DAYS_TRACKED days tracked, format: date|day|time_slot|type|title|completed):
+$TASK_LOG
 
 Give me a weekly performance review covering:
 
@@ -151,13 +163,45 @@ Give me a weekly performance review covering:
    - **Planning-to-doing ratio:** How much time was spent planning, researching, and preparing vs actually building? If the ratio is worse than 1:3 (planning:doing), flag it.
    - **Compounding check:** What was done this week that will still matter in 6 months? If the answer is 'nothing', that's a problem.
 
-Keep it honest and actionable. This is a coaching conversation, not a report."
+Keep it honest and actionable. This is a coaching conversation, not a report.
+
+IMPORTANT: At the very end of your response, include two machine-readable blocks:
+
+1. A Weekly Wrapped — a short, screenshot-friendly summary card in the spirit of Spotify Wrapped. This is NOT the review repeated — it's personality-driven and shareable. Make the data feel personal, not analytical: surprising stats, quirky observations, identity framing ('You're a night owl builder'). Use the task completion history for stats like most productive hour, best day, most-avoided task type. 10-15 lines max, emoji-friendly, no preamble. If there's less than a week of data, keep it simple and say the stats get better as data grows. Format:
+\`\`\`wrapped
+# 📊 Your Week Wrapped — week ending $TODAY
+<the card>
+\`\`\`
+
+2. A challenge for next week, based on the weakest area you found in this review (e.g. 'You haven't posted publicly in 14 days — publish one thing by Friday'). One specific, completable-in-a-week challenge with a deadline. Format:
+\`\`\`challenge
+<one line: the challenge>
+\`\`\`"
 
 # Output
 OUTPUT_FILE="$BRIEFINGS_DIR/$TODAY-weekly-review.md"
 
 cd "$SCRIPT_DIR"
-echo "$PROMPT" | claude --print > "$OUTPUT_FILE"
+FULL_OUTPUT=$(echo "$PROMPT" | claude --print)
+
+# Extract Weekly Wrapped into its own shareable note
+WRAPPED_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```wrapped$/,/^```$/p' | grep -v '```')
+if [ -n "$WRAPPED_ENTRY" ]; then
+    echo "$WRAPPED_ENTRY" > "$BRIEFINGS_DIR/$TODAY-wrapped.md"
+fi
+
+# Extract next week's challenge for the morning briefing to pick up
+CHALLENGE_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```challenge$/,/^```$/p' | grep -v '```')
+if [ -n "$CHALLENGE_ENTRY" ]; then
+    echo "$CHALLENGE_ENTRY (set: $TODAY)" > "$SCRIPT_DIR/current-challenge.md"
+fi
+
+# Save review (without the machine-readable blocks), link to the wrapped note
+echo "$FULL_OUTPUT" | sed '/^```wrapped$/,/^```$/d' | sed '/^```challenge$/,/^```$/d' > "$OUTPUT_FILE"
+if [ -n "$WRAPPED_ENTRY" ]; then
+    echo "" >> "$OUTPUT_FILE"
+    echo "📊 Weekly Wrapped: [[$TODAY-wrapped]]" >> "$OUTPUT_FILE"
+fi
 
 # Reset weekly grace day flags (new week starts)
 if [ -f "$SCRIPT_DIR/streaks.json" ]; then

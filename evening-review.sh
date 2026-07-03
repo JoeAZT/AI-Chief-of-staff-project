@@ -90,7 +90,7 @@ Keep it short. This should take 1 minute to read.
 
 Do NOT include a schedule block — this is a review, not a plan.
 
-IMPORTANT: At the very end of your response, include two machine-readable blocks:
+IMPORTANT: At the very end of your response, include these machine-readable blocks:
 
 1. A wins block listing any concrete achievements from today (shipped code, completed features, published content, workouts done, milestones hit). If nothing was achieved today, leave it empty. Format:
 \`\`\`wins
@@ -106,7 +106,7 @@ learning: yes/no
 public_output: yes/no
 \`\`\`
 
-For ship: did code get committed, a feature get built, or something tangible get produced?
+For ship: did code get committed, a feature get built, or something tangible get produced? Judge quality, not just presence — a typo fix, a one-line config change, or moving files around is not a ship. If it's borderline, keep the streak but say so in the review: 'Streak intact, but you know that wasn't a real ship.'
 For workout: did the fitness log show a workout today?
 For learning: did the user consume learning content (podcast, article, video, course)?
 For public_output: did something go out publicly under the user's name (blog post, tweet, shipped product update)?
@@ -118,6 +118,11 @@ For public_output: did something go out publicly under the user's name (blog pos
 
 ## LinkedIn
 <3-6 short paragraphs, practical here's-what-I-built tone>
+\`\`\`
+
+4. A task log block — one line per task that appeared in today's morning briefing (the '- [ ]'/'- [x]' checkboxes), so completion patterns can be analysed over time. Use the proposed schedule in the briefing for the time slot (HH:MM start time, or 'unscheduled' if it wasn't slotted). Task type must be one of: build, write, fitness, learning, admin. Format, one task per line:
+\`\`\`tasklog
+$TODAY|$DAY_OF_WEEK|HH:MM|task_type|short task title|yes/no
 \`\`\`"
 
 # Output file
@@ -177,12 +182,17 @@ if echo "$GAMIFICATION" | grep -q "public_output: yes"; then
     STREAK_FLAGS="$STREAK_FLAGS --public"
 fi
 
-if [ -n "$STREAK_FLAGS" ]; then
-    bash "$SCRIPT_DIR/update-streaks.sh" $STREAK_FLAGS
+# Always run, even with no flags — momentum decays on zero-activity days
+bash "$SCRIPT_DIR/update-streaks.sh" $STREAK_FLAGS
+
+# Extract task log and append to task-log.csv (date|day|slot|type|title|completed)
+TASKLOG_ENTRY=$(echo "$FULL_OUTPUT" | sed -n '/^```tasklog$/,/^```$/p' | grep -v '```')
+if [ -n "$TASKLOG_ENTRY" ]; then
+    echo "$TASKLOG_ENTRY" >> "$SCRIPT_DIR/task-log.csv"
 fi
 
 # Save briefing to Obsidian (without the machine-readable blocks)
-echo "$FULL_OUTPUT" | sed '/^```wins$/,/^```$/d' | sed '/^```gamification$/,/^```$/d' | sed '/^```draft$/,/^```$/d' > "$OUTPUT_FILE"
+echo "$FULL_OUTPUT" | sed '/^```wins$/,/^```$/d' | sed '/^```gamification$/,/^```$/d' | sed '/^```draft$/,/^```$/d' | sed '/^```tasklog$/,/^```$/d' > "$OUTPUT_FILE"
 
 # Send notification
 if [ -n "$DRAFT_ENTRY" ]; then

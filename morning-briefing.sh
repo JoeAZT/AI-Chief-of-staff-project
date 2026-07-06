@@ -237,7 +237,7 @@ MAX_RETRIES=2
 RETRY=0
 FULL_OUTPUT=""
 while [ $RETRY -le $MAX_RETRIES ]; do
-    FULL_OUTPUT=$(echo "$PROMPT" | claude --print 2>/dev/null) && break
+    FULL_OUTPUT=$(echo "$PROMPT" | claude --print 2>>"$SCRIPT_DIR/logs/claude-errors.log") && break
     RETRY=$((RETRY + 1))
     if [ $RETRY -le $MAX_RETRIES ]; then
         echo "Claude call failed. Retrying ($RETRY/$MAX_RETRIES)..."
@@ -270,6 +270,27 @@ fi
 
 # Save briefing to Obsidian (without the raw schedule and learning blocks)
 echo "$FULL_OUTPUT" | sed '/^```schedule$/,/^```$/d' | sed '/^```learning$/,/^```$/d' > "$OUTPUT_FILE"
+
+# Phone gets a short digest, not the whole briefing — full context lives in the
+# calendar events (tappable, notify at the right time) and the Obsidian note.
+# Sent after the calendar step so it can say what actually happened.
+send_phone_summary() {
+    local SUMMARY_FILE="$SCRIPT_DIR/logs/phone-summary.txt"
+    {
+        echo "☀️ Briefing ready — $TODAY"
+        grep -m1 '^🔥' "$OUTPUT_FILE" || true
+        if [ -s "$SCHEDULE_FILE" ]; then
+            echo ""
+            while IFS='|' read -r S E T _; do
+                # Braces required: bash 3.2 mis-parses $S followed by a multibyte char
+                [ -n "$S" ] && echo "${S}–${E}  $T"
+            done < "$SCHEDULE_FILE"
+        fi
+        echo ""
+        echo "$1"
+    } > "$SUMMARY_FILE"
+    bash "$SCRIPT_DIR/send-to-phone.sh" "$SUMMARY_FILE" || echo "Could not send summary to phone."
+}
 
 # Add link to Daily briefings index note
 BRIEFINGS_INDEX="$OBSIDIAN_ROOT/Daily briefings.md"
@@ -306,14 +327,27 @@ if [ -s "$SCHEDULE_FILE" ]; then
             echo "*Schedule saved but not added to calendar. Run \`bash $SCRIPT_DIR/create-events.sh $SCRIPT_DIR/today-schedule.csv\` to add manually.*" >> "$OUTPUT_FILE"
         fi
     else
-        # Non-interactive (e.g. LaunchAgent) — save schedule, notify to confirm
-        echo "" >> "$OUTPUT_FILE"
-        echo "---" >> "$OUTPUT_FILE"
-        echo "*Schedule ready but not added to calendar. Run \`bash ~/Documents/ai-chief-of-staff/approve-schedule.sh\` to review and approve.*" >> "$OUTPUT_FILE"
-        osascript -e 'display notification "Morning briefing ready. Run approve-schedule.sh to add events to calendar." with title "AI Chief of Staff" sound name "Glass"'
+        # Non-interactive (e.g. LaunchAgent) — add events automatically, same as
+        # the briefing lands on the phone without asking
+        if bash "$SCRIPT_DIR/create-events.sh" "$SCHEDULE_FILE"; then
+            echo "" >> "$OUTPUT_FILE"
+            echo "---" >> "$OUTPUT_FILE"
+            echo "*Schedule added to Apple Calendar ($CALENDAR_NAME).*" >> "$OUTPUT_FILE"
+            send_phone_summary "All in your calendar — tap an event for details and links. Full briefing in Obsidian."
+            osascript -e 'display notification "Morning briefing ready — schedule added to calendar." with title "AI Chief of Staff" sound name "Glass"'
+        else
+            echo "" >> "$OUTPUT_FILE"
+            echo "---" >> "$OUTPUT_FILE"
+            echo "*Could not add events to calendar. Run \`bash $SCRIPT_DIR/approve-schedule.sh\` to add them manually.*" >> "$OUTPUT_FILE"
+            send_phone_summary "Calendar events failed — run approve-schedule.sh. Full briefing in Obsidian."
+            osascript -e 'display notification "Briefing ready, but calendar events failed. Run approve-schedule.sh." with title "AI Chief of Staff" sound name "Basso"'
+        fi
         exit 0
     fi
 fi
+
+# Interactive and no-schedule runs land here (scheduled runs exit above)
+send_phone_summary "Full briefing: Obsidian → Daily briefings → $TODAY."
 
 # Send macOS notification
 osascript -e 'display notification "Your morning briefing is ready in Obsidian." with title "AI Chief of Staff" sound name "Glass"'

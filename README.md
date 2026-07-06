@@ -84,6 +84,20 @@ bash install-automation.sh # schedules the daily runs (optional but recommended)
 
 Setup asks about your schedule, goals, energy patterns, fitness setup, and how hard you want to be coached, then generates a profile (`CLAUDE.md`), workout library, config, and starter to-do list. The briefings are specific to your life — not generic productivity advice.
 
+### macOS permissions — once, then never again
+
+At the end of `install-automation.sh`, macOS shows 2–3 standard permission prompts from **Chief of Staff Runner** (a small helper app the installer builds):
+
+| Prompt | Why |
+|--------|-----|
+| Access files in your folder | Read your to-do list and write briefings |
+| Access Calendar | Add your daily schedule as events |
+| Access Messages | Text the morning digest to your phone (skipped if you didn't set a number) |
+
+Click **Allow** on each. That's the entire permission story — no Full Disk Access, nothing outside what any calendar app would ask for, and the daily runs are fully automatic from then on. Revoke any of it in System Settings → Privacy & Security.
+
+One catch worth knowing: if you accidentally click **Don't Allow**, macOS never asks again — it just fails silently. Recover with `tccutil reset AppleEvents` then re-run `bash install-automation.sh`.
+
 ## Usage
 
 ```bash

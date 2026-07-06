@@ -150,7 +150,7 @@ MAX_RETRIES=2
 RETRY=0
 FULL_OUTPUT=""
 while [ $RETRY -le $MAX_RETRIES ]; do
-    FULL_OUTPUT=$(echo "$PROMPT" | claude --print 2>/dev/null) && break
+    FULL_OUTPUT=$(echo "$PROMPT" | claude --print 2>>"$SCRIPT_DIR/logs/claude-errors.log") && break
     RETRY=$((RETRY + 1))
     if [ $RETRY -le $MAX_RETRIES ]; then
         echo "Claude call failed. Retrying ($RETRY/$MAX_RETRIES)..."

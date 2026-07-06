@@ -37,7 +37,12 @@ tell application \"Calendar\"
         end repeat
     end tell
 end tell
-" 2>/dev/null
+" 2>>"$SCRIPT_DIR/logs/calendar-errors.log" || {
+    echo "Calendar access failed (see logs/calendar-errors.log)."
+    echo "If it mentions -1743 / 'Not authorized': System Settings > Privacy & Security >"
+    echo "Automation > Chief of Staff Runner > enable Calendar. macOS never re-asks after a denial."
+    exit 1
+}
 
 # Read schedule and create events
 EVENT_COUNT=0
@@ -82,10 +87,14 @@ tell application \"Calendar\"
         make new event at end with properties {summary:\"$EVENT_TAG $SAFE_TITLE\", start date:eventStart, end date:eventEnd, description:\"$SAFE_DESC\"}
     end tell
 end tell
-" 2>/dev/null
+" > /dev/null 2>>"$SCRIPT_DIR/logs/calendar-errors.log" || {
+    echo "Failed to create event: $TITLE (see logs/calendar-errors.log)"
+    exit 1
+}
 
     EVENT_COUNT=$((EVENT_COUNT + 1))
-    echo "  Created: $START_TIME–$END_TIME — $TITLE"
+    # Braces required: bash 3.2 mis-parses $VAR followed by a multibyte char
+    echo "  Created: ${START_TIME}–${END_TIME} — $TITLE"
 done < "$SCHEDULE_FILE"
 
 echo ""

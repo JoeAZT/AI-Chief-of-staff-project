@@ -37,6 +37,8 @@ You are setting up a new user's AI Chief of Staff. Your job is to ask them quest
 - Where do you want your briefings saved? (I'll need a folder path — e.g. an Obsidian vault, a Notes folder, or anywhere on your Mac)
 - Do you use Apple Calendar, Google Calendar (synced to Mac), or something else?
   - What's the name of the calendar you want events added to? (e.g. "Home", "Personal", your email address)
+- Do you want your morning briefing sent to your phone as an iMessage? If yes, what's your phone number or Apple ID? (It sends the message to yourself, so it lands in Messages on your phone.)
+- What time do you want your morning briefing delivered each day? (Suggest a time just after their wake-up. Also pick an evening review time near their wind-down and default the weekly review to Sunday 10:00 — only ask if their schedule makes the defaults look wrong.)
 
 ### Learning (optional)
 - Do you want daily learning recommendations? If yes:
@@ -166,8 +168,15 @@ Create a `[BRIEFING_DIR]/To-do.md` with:
 
 Create or update `config.sh` in the current directory with:
 ```bash
+# Scheduled runs get a minimal PATH from launchd — make sure claude (Homebrew) is findable
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 BRIEFING_DIR="[their chosen folder path]"
 CALENDAR_NAME="[their calendar name]"
+PHONE_NUMBER="[their phone number or Apple ID for iMessage delivery — empty string if they said no]"
+MORNING_TIME="[their chosen briefing time, HH:MM]"
+EVENING_TIME="[their evening review time, HH:MM]"
+WEEKLY_TIME="[their weekly review time, HH:MM]"
 ```
 
 ### 5. Summary
@@ -175,6 +184,7 @@ CALENDAR_NAME="[their calendar name]"
 After generating everything, show the user:
 - What files were created
 - How to run their first morning briefing: `bash morning-briefing.sh` (from this folder)
+- How to make it run automatically every day: `bash install-automation.sh` (uses the times they chose; at the end it triggers all 2–3 macOS permission prompts from "Chief of Staff Runner" in one batch — files, Calendar, Messages — just click Allow on each, once, and they never appear again)
 - How to approve the schedule: `bash approve-schedule.sh`
 - How to log a workout: `bash log-workout.sh "routine name"`
 - How to run the evening review: `bash evening-review.sh`

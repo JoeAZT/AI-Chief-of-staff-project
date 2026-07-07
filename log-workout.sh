@@ -3,6 +3,7 @@
 # Usage: bash log-workout.sh [optional workout type, e.g. "D — Pull + Core"]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/config.sh" ] || { echo "No config.sh found — run: bash setup.sh first"; exit 1; }
 source "$SCRIPT_DIR/config.sh"
 OBSIDIAN_ROOT="$BRIEFING_DIR"
 TODO_FILE="$OBSIDIAN_ROOT/To-do.md"

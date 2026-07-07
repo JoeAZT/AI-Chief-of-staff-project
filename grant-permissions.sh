@@ -23,7 +23,12 @@ end timeout' > /dev/null
 
 if [ -n "$PHONE_NUMBER" ]; then
     echo "3/3 Messages access (phone delivery)..."
-    osascript -e 'tell application "Messages" to get name' > /dev/null
+    # Must read app *data* (accounts), not the app name — macOS answers 'get name'
+    # statically without contacting Messages, so it never triggers the prompt
+    open -gj -a Messages
+    osascript -e 'with timeout of 300 seconds
+tell application "Messages" to count every account
+end timeout' > /dev/null
 else
     echo "3/3 Messages — skipped (no PHONE_NUMBER in config.sh)"
 fi

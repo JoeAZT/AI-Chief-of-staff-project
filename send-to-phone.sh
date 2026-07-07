@@ -5,6 +5,7 @@
 # No-op if PHONE_NUMBER is empty in config.sh.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/config.sh" ] || { echo "No config.sh found — run: bash setup.sh first"; exit 1; }
 source "$SCRIPT_DIR/config.sh"
 
 [ -z "$PHONE_NUMBER" ] && exit 0

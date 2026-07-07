@@ -89,6 +89,9 @@ write_agent() {
 </plist>
 PLIST
 
+    # Start error logs fresh so doctor.sh only sees issues from this install onward
+    : > "$SCRIPT_DIR/logs/$label.err"
+
     launchctl unload "$plist" 2>/dev/null || true
     launchctl load "$plist"
     echo "  Loaded: $label — $time"
@@ -119,6 +122,6 @@ fi
 echo ""
 echo "Done. The system will now run automatically."
 echo ""
-echo "If a run ever fails silently, check $SCRIPT_DIR/logs/"
+echo "If a briefing ever fails to arrive, run: bash $SCRIPT_DIR/doctor.sh"
 echo ""
 echo "To uninstall: launchctl unload ~/Library/LaunchAgents/com.cos.*.plist && rm ~/Library/LaunchAgents/com.cos.*.plist && rm -rf \"\$HOME/Applications/Chief of Staff Runner.app\""

@@ -98,6 +98,8 @@ Click **Allow** on each. That's the entire permission story — no Full Disk Acc
 
 One catch worth knowing: if you accidentally click **Don't Allow**, macOS never asks again — it just fails silently. Recover with `tccutil reset AppleEvents` then re-run `bash install-automation.sh`.
 
+**If a briefing ever fails to arrive, run `bash doctor.sh`** — it checks your install, Claude login, automation, and permissions, and prints the fix for anything broken.
+
 ## Usage
 
 ```bash
@@ -128,6 +130,7 @@ It also watches itself: if the evening review stops running for 3+ days, the mor
 |------|---------|
 | `setup.sh` | Interactive onboarding — generates your personalised system |
 | `install-automation.sh` | Generates + loads LaunchAgents for automatic daily runs |
+| `doctor.sh` | Health check — diagnoses install, auth, and permission issues |
 | `onboarding-prompt.md` | System prompt that guides the onboarding conversation |
 | `CLAUDE.md` | Your personalised profile, goals, schedule, and rules (generated) |
 | `config.sh` | File paths and calendar name (generated) |
